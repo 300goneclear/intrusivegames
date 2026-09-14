@@ -1,7 +1,7 @@
 import type { Context } from '@netlify/functions'
 import { getStore } from '@netlify/blobs'
 
-const ALLOWED_KEYS = new Set(['game-state', 'imposter-state-v2'])
+const ALLOWED_KEYS = new Set(['game-state', 'imposter-state-v2', 'confessions-state'])
 
 export default async (req: Request, context: Context) => {
   const key = new URL(req.url).searchParams.get('key') ?? ''
@@ -13,6 +13,9 @@ export default async (req: Request, context: Context) => {
 
   if (req.method === 'GET') {
     const data = await store.get(key, { type: 'json' })
+    if (data === null || data === undefined) {
+      return new Response(null, { status: 404 })
+    }
     return Response.json(data)
   }
 
