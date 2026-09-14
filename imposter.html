@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intrusive — Imposter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,500&family=Jost:wght@300;400;500&display=swap');
+  :root{
+    --black:#0a0908; --black2:#141210; --gold:#c9a54a; --gold-bright:#e8cd82;
+    --cream:#f3ecdd; --danger:#c95555;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    min-height:100vh; background:
+      radial-gradient(circle at 50% 0%, rgba(201,165,74,0.10), transparent 55%), var(--black);
+    font-family:'Jost',sans-serif; color:var(--cream);
+    display:flex; flex-direction:column; align-items:center; padding:32px 16px;
+  }
+  h1{font-family:'Playfair Display',serif; font-style:italic; font-size:32px; color:var(--gold-bright); margin-bottom:4px; text-align:center;}
+  .sub{font-size:12px; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:6px;text-align:center;}
+  .backlink{display:block; text-align:center; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); margin-bottom:18px; text-decoration:underline;}
+  .rules{
+    width:100%; max-width:480px; border:1px solid rgba(201,165,74,0.3); background:var(--black2);
+    padding:18px 20px; margin-bottom:20px; font-size:12.5px; line-height:1.7; color:rgba(243,236,221,0.75);
+  }
+  .rules b{color:var(--gold-bright);}
+  .rules .warn{color:#e8a5a5; margin-top:8px; display:block;}
+  .panel{width:100%; max-width:480px; border:1px solid rgba(201,165,74,0.3); background:var(--black2); padding:24px; margin-bottom:20px;}
+  label{font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:6px;}
+  select{
+    width:100%; padding:12px; background:var(--black); border:1px solid rgba(201,165,74,0.3);
+    color:var(--cream); font-family:'Jost',sans-serif; font-size:14px; margin-bottom:14px;
+  }
+  select:disabled{opacity:0.6;}
+  .lock-note{font-size:11px; color:rgba(243,236,221,0.4); margin:-8px 0 14px;}
+  button{
+    width:100%; padding:14px; background:var(--gold); color:var(--black); border:none;
+    font-family:'Jost',sans-serif; font-size:13px; letter-spacing:0.12em; text-transform:uppercase;
+    cursor:pointer; transition:0.2s; margin-bottom:10px;
+  }
+  button:hover{background:var(--gold-bright);}
+  button:disabled{background:#555; color:#999; cursor:not-allowed;}
+  button.secondary{background:transparent; border:1px solid var(--gold); color:var(--gold-bright);}
+  button.danger{background:transparent; border:1px solid var(--danger); color:#e88;}
+  .phase-badge{
+    display:inline-block; padding:6px 14px; border:1px solid var(--gold); font-size:11px;
+    letter-spacing:0.12em; text-transform:uppercase; color:var(--gold-bright); margin-bottom:20px;
+  }
+  .role-card{ text-align:center; padding:28px 16px; border:1px solid var(--gold); margin-top:6px; }
+  .role-label{font-size:11px; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:10px;}
+  .role-word{font-family:'Playfair Display',serif; font-style:italic; font-size:30px; color:var(--gold-bright);}
+  .role-word.imposter{color:var(--danger); font-style:normal; font-weight:600;}
+  .status{font-size:12px; color:rgba(243,236,221,0.6); text-align:center; margin:14px 0; line-height:1.6;}
+  .timer{
+    font-family:'Playfair Display',serif; font-size:44px; text-align:center; color:var(--gold-bright);
+    margin:10px 0 18px;
+  }
+  .timer.low{color:var(--danger);}
+  .player-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(201,165,74,0.15); font-size:14px;}
+  .player-row:last-child{border-bottom:none;}
+  .vote-count{color:var(--gold); font-weight:600; margin-right:10px;}
+  .vote-btn{width:auto; padding:6px 14px; font-size:11px; margin:0;}
+  .admin{margin-top:8px; opacity:0.55; font-size:11px; text-align:center;}
+  .admin a{color:var(--gold); cursor:pointer; text-decoration:underline;}
+  .reveal-name{color:var(--danger); font-family:'Playfair Display',serif; font-style:italic; font-size:26px; text-align:center;}
+  .reveal-name.win{color:var(--gold-bright);}
+</style>
+</head>
+<body>
+
+<h1>Who's The Imposter?</h1>
+<div class="sub">Intrusive — Word Game</div>
+<a href="index.html" class="backlink">← Back to Games</a>
+<div class="phase-badge" id="phaseBadge">Loading...</div>
+
+<div class="rules">
+  <b>How it works:</b> Everyone playing registers first. Once the round starts, everyone gets the same secret word — except one random imposter, who gets nothing and has to bluff. Talk it out without saying the word outright. After 6 minutes, voting opens — vote who you think is faking it. Once everyone's voted, the most-voted player is eliminated and a new 6-minute round begins. This repeats until the imposter is caught, or only 2 players remain and the imposter escapes.
+  <span class="warn">⚠ Don't click through other people's names to peek at their word or role — only view your own. Keep your word and suspicions to yourself until voting.</span>
+</div>
+
+<div class="panel">
+  <label>Your Name</label>
+  <select id="nameInput" onchange="onNameChange()">
+    <option value="">Select your name...</option>
+  </select>
+  <div class="lock-note" id="lockNote"></div>
+
+  <div id="registerBox" style="display:none;">
+    <div class="status" id="registerStatus"></div>
+    <button id="registerBtn" onclick="registerPlayer()">I'm Playing This Round</button>
+  </div>
+
+  <div id="waitingBox" style="display:none;">
+    <div class="status">Waiting for the admin to start the round.</div>
+  </div>
+
+  <div id="roleBox" style="display:none;">
+    <div class="role-card">
+      <div class="role-label" id="roleLabel">Your Word</div>
+      <div class="role-word" id="roleWord">—</div>
+    </div>
+    <div class="timer" id="timerDisplay">--:--</div>
+    <div class="status">Talk it out without saying the word directly. Figure out who's faking it.</div>
+  </div>
+
+  <div id="voteBox" style="display:none; margin-top:10px;">
+    <label>Vote to eliminate</label>
+    <div id="voteList"></div>
+    <div class="status" id="voteProgress"></div>
+  </div>
+
+  <div id="revealBox" style="display:none; margin-top:20px;">
+    <div class="reveal-name" id="revealName">—</div>
+    <div class="status" id="revealWord"></div>
+  </div>
+</div>
+
+<div class="admin">
+  <a onclick="toggleAdmin()">Admin controls</a>
+  <div id="adminPanel" style="display:none; margin-top:14px; max-width:480px;">
+    <div class="status" id="adminStatus"></div>
+    <button onclick="startRound()">Start Round (locks registration)</button>
+    <button class="secondary" onclick="openVoting()">Open Voting Now</button>
+    <button class="secondary" onclick="tallyVotes()">Tally Votes &amp; Eliminate</button>
+    <button class="danger" onclick="resetGame()">Reset Game</button>
+  </div>
+</div>
+
+<script>
+const STATE_KEY = 'imposter-state-v2';
+let myName = '';
+let nameLocked = false;
+let lastAutoTallyKey = null;
+
+const ALL_PLAYERS = [
+  "Raven","Tyla","Sophie","Renae","Annicadiya","Mimi Baker","Laura (Tonbridge)","Labi",
+  "Abigail","Megan","Taylor Crawford","Eshanti","Sarah Solomon","Beth","Bri","Shin","Laura (Cardiff)",
+  "Nyall","Renz","Promise","Jordie","Ryco","Jefé"
+];
+
+const WORDS = [
+  "Beach Holiday","Wedding","Gym Session","First Date","Netflix Binge","Camping Trip",
+  "Job Interview","Birthday Party","Road Trip","Concert","Hospital Visit","Airport",
+  "Christmas Dinner","Nightclub","University Lecture","Zoo","Casino","Theme Park"
+];
+
+const DISCUSSION_SECONDS = 6 * 60;
+
+function populateNames(){
+  const sel = document.getElementById('nameInput');
+  sel.innerHTML = '<option value="">Select your name...</option>';
+  ALL_PLAYERS.forEach(n=>{
+    const opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    sel.appendChild(opt);
+  });
+}
+
+function onNameChange(){
+  if(nameLocked) return;
+  myName = document.getElementById('nameInput').value;
+  if(myName){
+    nameLocked = true;
+    document.getElementById('nameInput').disabled = true;
+    document.getElementById('lockNote').textContent = 'Your name is locked in for this session — reload the page to change it.';
+  }
+  render();
+}
+
+async function loadState(){
+  try{
+    const res = await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`);
+    if(res.status === 404) return defaultState();
+    const text = await res.text();
+    return text ? JSON.parse(text) : defaultState();
+  }catch(e){
+    return defaultState();
+  }
+}
+
+function defaultState(){
+  return {
+    phase:'registration',
+    registered:[], word:null, imposter:null,
+    alive:[], eliminated:[],
+    timerEndsAt:null,
+    votes:{}, outcome:null
+  };
+}
+
+async function saveState(state){
+  await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`, {
+    method: 'POST',
+    body: JSON.stringify(state)
+  });
+}
+
+async function registerPlayer(){
+  if(!myName){ alert('Select your name first.'); return; }
+  const state = await loadState();
+  if(state.phase !== 'registration'){ alert('Registration is closed for this round.'); return; }
+  if(!state.registered.includes(myName)) state.registered.push(myName);
+  await saveState(state);
+  render();
+}
+
+async function startRound(){
+  const state = await loadState();
+  if(state.registered.length < 3){ alert('Need at least 3 registered players.'); return; }
+  state.phase = 'discussion';
+  state.word = WORDS[Math.floor(Math.random()*WORDS.length)];
+  state.imposter = state.registered[Math.floor(Math.random()*state.registered.length)];
+  state.alive = [...state.registered];
+  state.eliminated = [];
+  state.votes = {};
+  state.timerEndsAt = Date.now() + DISCUSSION_SECONDS*1000;
+  await saveState(state);
+  render();
+}
+
+async function openVoting(){
+  const state = await loadState();
+  state.phase = 'voting';
+  state.votes = {};
+  await saveState(state);
+  render();
+}
+
+async function castVote(target){
+  if(!myName){ alert('Select your name first.'); return; }
+  const state = await loadState();
+  if(state.phase !== 'voting') return;
+  if(!state.alive.includes(myName)){ alert('Eliminated players cannot vote.'); return; }
+  state.votes[myName] = target;
+  await saveState(state);
+  render();
+}
+
+async function tallyVotes(){
+  const state = await loadState();
+  if(state.phase !== 'voting'){ return; }
+  const tally = {};
+  state.alive.forEach(p=>tally[p]=0);
+  Object.values(state.votes).forEach(v=>{ if(tally[v] !== undefined) tally[v]++; });
+  let max = -1, tied = [];
+  Object.entries(tally).forEach(([p,c])=>{
+    if(c > max){ max = c; tied = [p]; }
+    else if(c === max){ tied.push(p); }
+  });
+  const kicked = tied[Math.floor(Math.random()*tied.length)];
+
+  state.alive = state.alive.filter(p => p !== kicked);
+  state.eliminated.push(kicked);
+  state.votes = {};
+
+  if(kicked === state.imposter){
+    state.phase = 'revealed';
+    state.outcome = 'caught';
+  } else if(state.alive.length <= 2){
+    state.phase = 'revealed';
+    state.outcome = 'imposter_wins';
+  } else {
+    state.phase = 'discussion';
+    state.timerEndsAt = Date.now() + DISCUSSION_SECONDS*1000;
+  }
+  await saveState(state);
+  render();
+}
+
+async function resetGame(){
+  if(!confirm('Reset the whole game?')) return;
+  await saveState(defaultState());
+  render();
+}
+
+function toggleAdmin(){
+  const p = document.getElementById('adminPanel');
+  if(p.style.display === 'none' || !p.style.display){
+    const pass = prompt('Admin passcode:');
+    if(pass !== 'intrusive25'){ alert('Incorrect passcode.'); return; }
+    p.style.display = 'block';
+  } else {
+    p.style.display = 'none';
+  }
+}
+
+function formatTime(ms){
+  if(ms <= 0) return '00:00';
+  const totalSec = Math.ceil(ms/1000);
+  const m = Math.floor(totalSec/60);
+  const s = totalSec % 60;
+  return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function buildVoteList(state){
+  const list = document.getElementById('voteList');
+  list.innerHTML = '';
+  const tally = {};
+  state.alive.forEach(p=>tally[p]=0);
+  Object.values(state.votes).forEach(v=>{ if(tally[v] !== undefined) tally[v]++; });
+
+  state.alive.forEach(p=>{
+    if(p === myName) return;
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    const voted = state.votes[myName] === p;
+    row.innerHTML = `<span>${p}</span>`;
+    const btn = document.createElement('button');
+    btn.className = 'vote-btn';
+    btn.textContent = voted ? '✓ Voted' : 'Vote';
+    if(voted){ btn.style.background = 'var(--gold-bright)'; }
+    btn.onclick = () => castVote(p);
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+
+  const votedCount = Object.keys(state.votes).length;
+  document.getElementById('voteProgress').textContent = `${votedCount} of ${state.alive.length} alive players have voted.`;
+}
+
+async function render(){
+  const state = await loadState();
+  const badge = document.getElementById('phaseBadge');
+  const registerBox = document.getElementById('registerBox');
+  const waitingBox = document.getElementById('waitingBox');
+  const roleBox = document.getElementById('roleBox');
+  const voteBox = document.getElementById('voteBox');
+  const revealBox = document.getElementById('revealBox');
+  const adminStatus = document.getElementById('adminStatus');
+
+  registerBox.style.display = 'none';
+  waitingBox.style.display = 'none';
+  roleBox.style.display = 'none';
+  voteBox.style.display = 'none';
+  revealBox.style.display = 'none';
+
+  adminStatus.textContent = `Registered: ${state.registered.length} · Alive: ${state.alive.length} · Eliminated: ${state.eliminated.join(', ') || 'none'}`;
+
+  if(state.phase === 'registration'){
+    badge.textContent = 'Registration Open';
+    if(!myName){
+      waitingBox.style.display = 'block';
+      waitingBox.querySelector('.status').textContent = 'Select your name to register.';
+    } else {
+      registerBox.style.display = 'block';
+      const isIn = state.registered.includes(myName);
+      document.getElementById('registerStatus').textContent = isIn
+        ? `You're in! ${state.registered.length} player(s) registered so far.`
+        : `${state.registered.length} player(s) registered so far.`;
+      document.getElementById('registerBtn').disabled = isIn;
+      document.getElementById('registerBtn').textContent = isIn ? "✓ You're Registered" : "I'm Playing This Round";
+    }
+    return;
+  }
+
+  if(state.phase === 'discussion'){
+    badge.textContent = 'Discussion — Find The Imposter';
+    if(!myName || !state.registered.includes(myName)){
+      waitingBox.style.display = 'block';
+      waitingBox.querySelector('.status').textContent = 'You are spectating this round.';
+      return;
+    }
+    if(!state.alive.includes(myName)){
+      revealBox.style.display = 'block';
+      document.getElementById('revealName').textContent = 'You were eliminated';
+      document.getElementById('revealWord').textContent = 'Watch the rest play out.';
+      return;
+    }
+    roleBox.style.display = 'block';
+    const isImposter = state.imposter === myName;
+    document.getElementById('roleLabel').textContent = isImposter ? 'You Are' : 'Your Word';
+    const wordEl = document.getElementById('roleWord');
+    wordEl.textContent = isImposter ? 'THE IMPOSTER' : state.word;
+    wordEl.className = 'role-word' + (isImposter ? ' imposter' : '');
+
+    const remaining = state.timerEndsAt - Date.now();
+    const timerEl = document.getElementById('timerDisplay');
+    timerEl.textContent = formatTime(remaining);
+    timerEl.className = 'timer' + (remaining < 30000 ? ' low' : '');
+
+    if(remaining <= 0 && lastAutoTallyKey !== 'voting-open-' + state.eliminated.length){
+      lastAutoTallyKey = 'voting-open-' + state.eliminated.length;
+      openVoting();
+    }
+    return;
+  }
+
+  if(state.phase === 'voting'){
+    badge.textContent = 'Voting — Who Is It?';
+    if(!myName || !state.registered.includes(myName)){
+      waitingBox.style.display = 'block';
+      waitingBox.querySelector('.status').textContent = 'You are spectating this round.';
+      return;
+    }
+    if(!state.alive.includes(myName)){
+      revealBox.style.display = 'block';
+      document.getElementById('revealName').textContent = 'You were eliminated';
+      document.getElementById('revealWord').textContent = 'Watch the voting play out.';
+      return;
+    }
+    voteBox.style.display = 'block';
+    buildVoteList(state);
+
+    const votedCount = Object.keys(state.votes).length;
+    if(votedCount >= state.alive.length && lastAutoTallyKey !== 'tally-' + state.eliminated.length){
+      lastAutoTallyKey = 'tally-' + state.eliminated.length;
+      tallyVotes();
+    }
+    return;
+  }
+
+  if(state.phase === 'revealed'){
+    badge.textContent = 'Round Over';
+    revealBox.style.display = 'block';
+    const nameEl = document.getElementById('revealName');
+    if(state.outcome === 'caught'){
+      nameEl.textContent = state.imposter + ' was the imposter!';
+      nameEl.className = 'reveal-name win';
+    } else {
+      nameEl.textContent = state.imposter + ' got away with it!';
+      nameEl.className = 'reveal-name';
+    }
+    document.getElementById('revealWord').textContent = 'The word was "' + state.word + '"';
+  }
+}
+
+populateNames();
+render();
+setInterval(render, 1000);
+</script>
+
+</body>
+</html>

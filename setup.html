@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Setup — Run Once</title>
+<style>
+  body{ font-family: sans-serif; background:#0a0908; color:#f3ecdd; display:flex; align-items:center; justify-content:center; height:100vh; text-align:center; padding:20px;}
+  .box{max-width:420px;}
+  code{background:#222; padding:10px 16px; display:block; margin-top:16px; word-break:break-all; color:#e8cd82; font-size:18px;}
+  button{margin-top:20px; padding:12px 20px; background:#c9a54a; border:none; cursor:pointer; font-size:14px;}
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>Set up shared storage</h2>
+  <p id="status">Enter an email to register your bucket (kvdb.io requires this — it won't be used for anything else).</p>
+  <input id="emailInput" type="email" placeholder="you@example.com" style="padding:10px; width:100%; margin-top:14px; font-size:14px; box-sizing:border-box;">
+  <button onclick="createBucket()">Create Bucket</button>
+  <code id="bucketId" style="display:none;"></code>
+  <p id="instructions" style="display:none; margin-top:16px; font-size:13px; opacity:0.7;">Copy this ID and send it back in the chat — I'll wire it into both games.</p>
+</div>
+<script>
+function createBucket(){
+  const email = document.getElementById('emailInput').value.trim();
+  if(!email){ alert('Enter an email first.'); return; }
+  document.getElementById('status').textContent = 'Creating your bucket...';
+  fetch('https://kvdb.io/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'email=' + encodeURIComponent(email)
+  })
+    .then(r => r.text())
+    .then(id => {
+      document.getElementById('status').textContent = 'Done! Your bucket ID is:';
+      document.getElementById('bucketId').textContent = id.trim();
+      document.getElementById('bucketId').style.display = 'block';
+      document.getElementById('instructions').style.display = 'block';
+    })
+    .catch(err => {
+      document.getElementById('status').textContent = 'Something went wrong: ' + err.message;
+    });
+}
+</script>
+</body>
+</html>
