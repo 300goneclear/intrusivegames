@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intrusive — Confession Roulette</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,500&family=Jost:wght@300;400;500&display=swap');
+  :root{
+    --black:#0a0908; --black2:#141210; --gold:#c9a54a; --gold-bright:#e8cd82;
+    --cream:#f3ecdd; --danger:#c95555;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    min-height:100vh; background:
+      radial-gradient(circle at 50% 0%, rgba(201,165,74,0.10), transparent 55%), var(--black);
+    font-family:'Jost',sans-serif; color:var(--cream);
+    display:flex; flex-direction:column; align-items:center; padding:32px 16px;
+  }
+  h1{font-family:'Playfair Display',serif; font-style:italic; font-size:32px; color:var(--gold-bright); margin-bottom:4px; text-align:center;}
+  .sub{font-size:12px; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:6px;text-align:center;}
+  .backlink{display:block; text-align:center; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); margin-bottom:18px; text-decoration:underline;}
+  .rules{
+    width:100%; max-width:480px; border:1px solid rgba(201,165,74,0.3); background:var(--black2);
+    padding:18px 20px; margin-bottom:20px; font-size:12.5px; line-height:1.7; color:rgba(243,236,221,0.75);
+  }
+  .rules b{color:var(--gold-bright);}
+  .rules .warn{color:#e8a5a5; margin-top:8px; display:block;}
+  .panel{width:100%; max-width:480px; border:1px solid rgba(201,165,74,0.3); background:var(--black2); padding:24px; margin-bottom:20px;}
+  label{font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:6px;}
+  select, textarea{
+    width:100%; padding:12px; background:var(--black); border:1px solid rgba(201,165,74,0.3);
+    color:var(--cream); font-family:'Jost',sans-serif; font-size:14px; margin-bottom:14px; resize:vertical;
+  }
+  select:disabled{opacity:0.6;}
+  .lock-note{font-size:11px; color:rgba(243,236,221,0.4); margin:-8px 0 14px;}
+  button{
+    width:100%; padding:14px; background:var(--gold); color:var(--black); border:none;
+    font-family:'Jost',sans-serif; font-size:13px; letter-spacing:0.12em; text-transform:uppercase;
+    cursor:pointer; transition:0.2s; margin-bottom:10px;
+  }
+  button:hover{background:var(--gold-bright);}
+  button:disabled{background:#555; color:#999; cursor:not-allowed;}
+  button.secondary{background:transparent; border:1px solid var(--gold); color:var(--gold-bright);}
+  button.danger{background:transparent; border:1px solid var(--danger); color:#e88;}
+  .phase-badge{
+    display:inline-block; padding:6px 14px; border:1px solid var(--gold); font-size:11px;
+    letter-spacing:0.12em; text-transform:uppercase; color:var(--gold-bright); margin-bottom:20px;
+  }
+  .confession-card{
+    text-align:center; padding:36px 20px; border:1px solid var(--gold); margin:6px 0 18px;
+    min-height:100px; display:flex; align-items:center; justify-content:center;
+  }
+  .confession-text{font-family:'Playfair Display',serif; font-style:italic; font-size:20px; color:var(--gold-bright); line-height:1.5;}
+  .confession-count{font-size:11px; color:rgba(243,236,221,0.4); text-align:center; margin-bottom:14px; letter-spacing:0.08em; text-transform:uppercase;}
+  .status{font-size:12px; color:rgba(243,236,221,0.6); text-align:center; margin:14px 0; line-height:1.6;}
+  .player-row{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(201,165,74,0.15); font-size:14px;}
+  .player-row:last-child{border-bottom:none;}
+  .vote-btn{width:auto; padding:6px 14px; font-size:11px; margin:0;}
+  .admin{margin-top:8px; opacity:0.55; font-size:11px; text-align:center;}
+  .admin a{color:var(--gold); cursor:pointer; text-decoration:underline;}
+  .author-reveal{color:var(--danger); font-family:'Playfair Display',serif; font-style:italic; font-size:24px; text-align:center; margin-top:16px;}
+</style>
+</head>
+<body>
+
+<h1>Confession Roulette</h1>
+<div class="sub">Intrusive — Secrets Game</div>
+<a href="index.html" class="backlink">← Back to Games</a>
+<div class="phase-badge" id="phaseBadge">Loading...</div>
+
+<div class="rules">
+  <b>How it works:</b> Submit an anonymous confession — nobody sees who wrote what. Once submissions close, the admin reveals them one at a time. After each one, guess who you think wrote it. Then the truth drops.
+  <span class="warn">⚠ Keep it fun, not mean. Nothing that could genuinely hurt someone — this is a party game, not therapy.</span>
+</div>
+
+<div class="panel">
+  <label>Your Name</label>
+  <select id="nameInput" onchange="onNameChange()">
+    <option value="">Select your name...</option>
+  </select>
+  <div class="lock-note" id="lockNote"></div>
+
+  <div id="submitBox" style="display:none;">
+    <label>Your Confession</label>
+    <textarea id="confessionText" rows="3" placeholder="Type something nobody knows about you..."></textarea>
+    <button id="submitBtn" onclick="submitConfession()">Submit Anonymously</button>
+    <div class="status" id="submitStatus"></div>
+  </div>
+
+  <div id="waitingBox" style="display:none;">
+    <div class="status">Waiting for the admin to start the reveal.</div>
+  </div>
+
+  <div id="revealBox" style="display:none;">
+    <div class="confession-count" id="confessionCount"></div>
+    <div class="confession-card">
+      <div class="confession-text" id="confessionText2">—</div>
+    </div>
+    <div id="guessBox">
+      <label>Guess who wrote it</label>
+      <div id="guessList"></div>
+      <div class="status" id="guessProgress"></div>
+    </div>
+    <div id="authorRevealBox" style="display:none;">
+      <div class="author-reveal" id="authorName">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="admin">
+  <a onclick="toggleAdmin()">Admin controls</a>
+  <div id="adminPanel" style="display:none; margin-top:14px; max-width:480px;">
+    <div class="status" id="adminStatus"></div>
+    <button onclick="startReveal()">Close Submissions &amp; Start Reveal</button>
+    <button class="secondary" onclick="revealAuthor()">Reveal Author</button>
+    <button class="secondary" onclick="nextConfession()">Next Confession →</button>
+    <button class="danger" onclick="resetGame()">Reset Game</button>
+  </div>
+</div>
+
+<script>
+const STATE_KEY = 'confessions-state';
+let myName = '';
+let nameLocked = false;
+
+const ALL_PLAYERS = [
+  "Raven","Tyla","Sophie","Renae","Annicadiya","Mimi Baker","Laura (Tonbridge)","Labi",
+  "Abigail","Megan","Taylor Crawford","Eshanti","Sarah Solomon","Beth","Bri","Shin","Laura (Cardiff)",
+  "Nyall","Renz","Promise","Jordie","Ryco","Jefé"
+];
+
+function populateNames(){
+  const sel = document.getElementById('nameInput');
+  sel.innerHTML = '<option value="">Select your name...</option>';
+  ALL_PLAYERS.forEach(n=>{
+    const opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    sel.appendChild(opt);
+  });
+}
+
+function onNameChange(){
+  if(nameLocked) return;
+  myName = document.getElementById('nameInput').value;
+  if(myName){
+    nameLocked = true;
+    document.getElementById('nameInput').disabled = true;
+    document.getElementById('lockNote').textContent = 'Your name is locked in for this session — reload the page to change it.';
+  }
+  render();
+}
+
+async function loadState(){
+  try{
+    const res = await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`);
+    if(!res.ok) return defaultState();
+    const data = await res.json();
+    if(data === null || data === undefined) return defaultState();
+    return data;
+  }catch(e){
+    return defaultState();
+  }
+}
+
+function defaultState(){
+  return {
+    phase:'submitting',
+    confessions:[],
+    revealedIndex:-1,
+    authorShown:false,
+    guesses:{}
+  };
+}
+
+async function saveState(state){
+  try{
+    await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state)
+    });
+  }catch(e){}
+}
+
+async function submitConfession(){
+  const text = document.getElementById('confessionText').value.trim();
+  const statusEl = document.getElementById('submitStatus');
+  if(!myName){ statusEl.textContent = 'Select your name first.'; return; }
+  if(!text){ statusEl.textContent = 'Write something first.'; return; }
+  const state = await loadState();
+  if(state.phase !== 'submitting'){ statusEl.textContent = 'Submissions are closed.'; return; }
+  state.confessions.push({ text, author: myName });
+  // shuffle so submission order doesn't hint at who wrote what
+  for(let i = state.confessions.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i+1));
+    [state.confessions[i], state.confessions[j]] = [state.confessions[j], state.confessions[i]];
+  }
+  await saveState(state);
+  document.getElementById('confessionText').value = '';
+  statusEl.textContent = `Submitted! ${state.confessions.length} confession(s) in so far.`;
+}
+
+async function startReveal(){
+  const state = await loadState();
+  if(state.confessions.length < 2){ alert('Need at least 2 confessions.'); return; }
+  state.phase = 'revealing';
+  state.revealedIndex = 0;
+  state.authorShown = false;
+  state.guesses = {};
+  await saveState(state);
+  render();
+}
+
+async function nextConfession(){
+  const state = await loadState();
+  if(state.revealedIndex >= state.confessions.length - 1){
+    state.phase = 'done';
+  } else {
+    state.revealedIndex += 1;
+    state.authorShown = false;
+    state.guesses = {};
+  }
+  await saveState(state);
+  render();
+}
+
+async function revealAuthor(){
+  const state = await loadState();
+  state.authorShown = true;
+  await saveState(state);
+  render();
+}
+
+async function castGuess(target){
+  if(!myName){ alert('Select your name first.'); return; }
+  const state = await loadState();
+  if(state.phase !== 'revealing') return;
+  state.guesses[myName] = target;
+  await saveState(state);
+  render();
+}
+
+async function resetGame(){
+  if(!confirm('Reset the whole game?')) return;
+  await saveState(defaultState());
+  render();
+}
+
+function toggleAdmin(){
+  const p = document.getElementById('adminPanel');
+  if(p.style.display === 'none' || !p.style.display){
+    const pass = prompt('Admin passcode:');
+    if(pass !== 'intrusive25'){ alert('Incorrect passcode.'); return; }
+    p.style.display = 'block';
+  } else {
+    p.style.display = 'none';
+  }
+}
+
+function buildGuessList(state){
+  const list = document.getElementById('guessList');
+  list.innerHTML = '';
+  ALL_PLAYERS.forEach(p=>{
+    if(p === myName) return;
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    const voted = state.guesses[myName] === p;
+    row.innerHTML = `<span>${p}</span>`;
+    const btn = document.createElement('button');
+    btn.className = 'vote-btn';
+    btn.textContent = voted ? '✓ Guessed' : 'Guess';
+    if(voted){ btn.style.background = 'var(--gold-bright)'; }
+    btn.onclick = () => castGuess(p);
+    row.appendChild(btn);
+    list.appendChild(row);
+  });
+  const guessedCount = Object.keys(state.guesses).length;
+  document.getElementById('guessProgress').textContent = `${guessedCount} guess(es) submitted.`;
+}
+
+async function render(){
+  const state = await loadState();
+  const badge = document.getElementById('phaseBadge');
+  const submitBox = document.getElementById('submitBox');
+  const waitingBox = document.getElementById('waitingBox');
+  const revealBox = document.getElementById('revealBox');
+  const guessBox = document.getElementById('guessBox');
+  const authorRevealBox = document.getElementById('authorRevealBox');
+  const adminStatus = document.getElementById('adminStatus');
+
+  submitBox.style.display = 'none';
+  waitingBox.style.display = 'none';
+  revealBox.style.display = 'none';
+
+  adminStatus.textContent = `Confessions: ${state.confessions.length} · Revealed: ${state.phase === 'revealing' || state.phase === 'done' ? state.revealedIndex + 1 : 0}/${state.confessions.length}`;
+
+  if(state.phase === 'submitting'){
+    badge.textContent = 'Submitting Confessions';
+    if(!myName){
+      waitingBox.style.display = 'block';
+      waitingBox.querySelector('.status').textContent = 'Select your name to submit a confession.';
+    } else {
+      submitBox.style.display = 'block';
+    }
+    return;
+  }
+
+  if(state.phase === 'revealing'){
+    badge.textContent = `Confession ${state.revealedIndex + 1} of ${state.confessions.length}`;
+    revealBox.style.display = 'block';
+    document.getElementById('confessionCount').textContent = `Confession ${state.revealedIndex + 1} of ${state.confessions.length}`;
+    document.getElementById('confessionText2').textContent = state.confessions[state.revealedIndex].text;
+
+    if(state.authorShown){
+      guessBox.style.display = 'none';
+      authorRevealBox.style.display = 'block';
+      document.getElementById('authorName').textContent = 'Written by ' + state.confessions[state.revealedIndex].author;
+    } else {
+      guessBox.style.display = 'block';
+      authorRevealBox.style.display = 'none';
+      buildGuessList(state);
+    }
+    return;
+  }
+
+  if(state.phase === 'done'){
+    badge.textContent = 'All Confessions Revealed';
+    revealBox.style.display = 'block';
+    document.getElementById('confessionCount').textContent = 'That\\'s everyone\\'s secrets — for now.';
+    document.getElementById('confessionText2').textContent = '🥂';
+    guessBox.style.display = 'none';
+    authorRevealBox.style.display = 'none';
+  }
+}
+
+populateNames();
+render();
+setInterval(render, 1500);
+</script>
+
+</body>
+</html>

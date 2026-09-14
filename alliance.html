@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intrusive — Alliance Betrayal</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,500&family=Jost:wght@300;400;500&display=swap');
+  :root{
+    --black:#0a0908; --black2:#141210; --gold:#c9a54a; --gold-bright:#e8cd82;
+    --cream:#f3ecdd; --danger:#c95555;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    min-height:100vh; background:
+      radial-gradient(circle at 50% 0%, rgba(201,165,74,0.10), transparent 55%), var(--black);
+    font-family:'Jost',sans-serif; color:var(--cream);
+    display:flex; flex-direction:column; align-items:center; padding:32px 16px;
+  }
+  h1{font-family:'Playfair Display',serif; font-style:italic; font-size:32px; color:var(--gold-bright); margin-bottom:4px; text-align:center;}
+  .sub{font-size:12px; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:6px;text-align:center;}
+  .backlink{display:block; text-align:center; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); margin-bottom:18px; text-decoration:underline;}
+  .rules{
+    width:100%; max-width:480px; border:1px solid rgba(201,165,74,0.3); background:var(--black2);
+    padding:18px 20px; margin-bottom:20px; font-size:12.5px; line-height:1.7; color:rgba(243,236,221,0.75);
+  }
+  .rules b{color:var(--gold-bright);}
+  .rules .warn{color:#e8a5a5; margin-top:8px; display:block;}
+  .panel{width:100%; max-width:480px; border:1px solid rgba(201,165,74,0.3); background:var(--black2); padding:24px; margin-bottom:20px;}
+  label{font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:6px;}
+  select, input[type=number]{
+    width:100%; padding:12px; background:var(--black); border:1px solid rgba(201,165,74,0.3);
+    color:var(--cream); font-family:'Jost',sans-serif; font-size:14px; margin-bottom:14px;
+  }
+  select:disabled{opacity:0.6;}
+  .lock-note{font-size:11px; color:rgba(243,236,221,0.4); margin:-8px 0 14px;}
+  button{
+    width:100%; padding:14px; background:var(--gold); color:var(--black); border:none;
+    font-family:'Jost',sans-serif; font-size:13px; letter-spacing:0.12em; text-transform:uppercase;
+    cursor:pointer; transition:0.2s; margin-bottom:10px;
+  }
+  button:hover{background:var(--gold-bright);}
+  button:disabled{background:#555; color:#999; cursor:not-allowed;}
+  button.secondary{background:transparent; border:1px solid var(--gold); color:var(--gold-bright);}
+  button.danger{background:transparent; border:1px solid var(--danger); color:#e88;}
+  .choice-row{display:flex; gap:10px; margin-bottom:10px;}
+  .choice-row button{margin-bottom:0;}
+  .choice-row button.split{background:transparent; border:1px solid var(--gold-bright); color:var(--gold-bright);}
+  .choice-row button.steal{background:transparent; border:1px solid var(--danger); color:#e88;}
+  .choice-row button.chosen{background:var(--gold); color:var(--black); border-color:var(--gold);}
+  .phase-badge{
+    display:inline-block; padding:6px 14px; border:1px solid var(--gold); font-size:11px;
+    letter-spacing:0.12em; text-transform:uppercase; color:var(--gold-bright); margin-bottom:20px;
+  }
+  .status{font-size:12px; color:rgba(243,236,221,0.6); text-align:center; margin:14px 0; line-height:1.6;}
+  .partner-card{text-align:center; padding:20px; border:1px solid var(--gold); margin-bottom:16px;}
+  .partner-name{font-family:'Playfair Display',serif; font-style:italic; font-size:22px; color:var(--gold-bright);}
+  .feed-row{padding:10px 0; border-bottom:1px solid rgba(201,165,74,0.15); font-size:13px; line-height:1.5;}
+  .feed-row:last-child{border-bottom:none;}
+  .feed-safe{color:rgba(243,236,221,0.6);}
+  .feed-dare{color:#e8a5a5;}
+  .dare-card{text-align:center; padding:24px 16px; border:1px solid var(--danger); margin-top:12px;}
+  .dare-title{font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:#e88; margin-bottom:8px;}
+  .dare-text{font-family:'Playfair Display',serif; font-style:italic; font-size:19px; color:var(--cream);}
+  .admin{margin-top:8px; opacity:0.55; font-size:11px; text-align:center;}
+  .admin a{color:var(--gold); cursor:pointer; text-decoration:underline;}
+</style>
+</head>
+<body>
+
+<h1>Alliance Betrayal</h1>
+<div class="sub">Intrusive — Trust Game</div>
+<a href="index.html" class="backlink">← Back to Games</a>
+<div class="phase-badge" id="phaseBadge">Loading...</div>
+
+<div class="rules">
+  <b>How it works:</b> 3 rounds, random pairs each time. Both split = +1 each. One steals, one splits = stealer gets +2, splitter gets 0. Both steal = a number duel: guess closest to a hidden target (1–25), winner gets +2, loser gets 0. After 3 rounds, whoever has the fewest points does a public dare. If it's a tie, everyone tied goes into one more number duel — this time, whoever's <b>farthest</b> from the target is the one who actually does it.
+  <span class="warn">⚠ Dares are meant to be funny, not humiliating. Skip anything that crosses a line for someone.</span>
+</div>
+
+<div class="panel">
+  <label>Your Name</label>
+  <select id="nameInput" onchange="onNameChange()">
+    <option value="">Select your name...</option>
+  </select>
+  <div class="lock-note" id="lockNote"></div>
+
+  <div id="waitingBox" style="display:none;">
+    <div class="status" id="waitingText">Waiting for the admin to start a round.</div>
+  </div>
+
+  <div id="gameBox" style="display:none;">
+    <div class="partner-card">
+      <div style="font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); margin-bottom:6px;">Your Partner — Round <span id="roundLabel">1</span></div>
+      <div class="partner-name" id="partnerName">—</div>
+    </div>
+
+    <div id="choiceBox" style="display:none;">
+      <label>Your Move</label>
+      <div class="choice-row">
+        <button class="split" id="splitBtn" onclick="makeChoice('split')">Split</button>
+        <button class="steal" id="stealBtn" onclick="makeChoice('steal')">Steal</button>
+      </div>
+      <div class="status" id="choiceStatus"></div>
+    </div>
+
+    <div id="duelBox" style="display:none;">
+      <div class="status">Both stole. Guess a number 1–25 closest to the hidden target.</div>
+      <input type="number" id="duelGuess" min="1" max="25" placeholder="1–25">
+      <button onclick="submitDuelGuess()">Lock In Guess</button>
+      <div class="status" id="duelStatus"></div>
+    </div>
+
+    <div id="resultBox" style="display:none;">
+      <div class="status" id="resultText" style="font-size:15px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="tiebreakPanel" style="display:none;">
+  <label>Final Tiebreaker</label>
+  <div class="status">Tied for last place. Guess 1–25 — farthest from the target does the dare.</div>
+  <div id="tiebreakInputBox">
+    <input type="number" id="tiebreakGuess" min="1" max="25" placeholder="1–25">
+    <button onclick="submitTiebreakGuess()">Lock In Guess</button>
+  </div>
+  <div class="status" id="tiebreakStatus"></div>
+</div>
+
+<div class="panel" id="finalPanel" style="display:none;">
+  <label>Final Result</label>
+  <div class="dare-card">
+    <div class="dare-title" id="finalTitle">The Dare Goes To</div>
+    <div class="dare-text" id="finalName">—</div>
+    <div class="status" id="finalDareText" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<div class="panel">
+  <label>Standings</label>
+  <div id="leaderboardList"></div>
+</div>
+
+<div class="panel">
+  <label>Live Results</label>
+  <div id="feedList"></div>
+</div>
+
+<div class="admin">
+  <a onclick="toggleAdmin()">Admin controls</a>
+  <div id="adminPanel" style="display:none; margin-top:14px; max-width:480px;">
+    <div class="status" id="adminStatus"></div>
+    <button onclick="advance()" id="advanceBtn">Start Round 1</button>
+    <button class="danger" onclick="resetGame()">Reset Game</button>
+  </div>
+</div>
+
+<script>
+const STATE_KEY = 'alliance-state';
+let myName = '';
+let nameLocked = false;
+
+const ALL_PLAYERS = [
+  "Raven","Tyla","Sophie","Renae","Annicadiya","Mimi Baker","Laura (Tonbridge)","Labi",
+  "Abigail","Megan","Taylor Crawford","Eshanti","Sarah Solomon","Beth","Bri","Shin","Laura (Cardiff)",
+  "Nyall","Renz","Promise","Jordie","Ryco","Jefé"
+];
+
+const DARES = [
+  "Do your best impression of someone else in the group",
+  "Send a 10-second singing voice note to the group",
+  "Let the group pick your Instagram story caption for the next hour",
+  "Talk in an accent for the next 5 minutes",
+  "Do 15 push-ups on camera right now",
+  "Text the group your most-used emoji, 10 times in a row",
+  "Let your partner post one (tasteful) status on your behalf",
+  "Do a 20-second stand-up bit — no laughing allowed",
+  "Recreate your most-used photo pose",
+  "Answer the next 3 questions in a British accent"
+];
+
+function populateNames(){
+  const sel = document.getElementById('nameInput');
+  sel.innerHTML = '<option value="">Select your name...</option>';
+  ALL_PLAYERS.forEach(n=>{
+    const opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    sel.appendChild(opt);
+  });
+}
+
+function onNameChange(){
+  if(nameLocked) return;
+  myName = document.getElementById('nameInput').value;
+  if(myName){
+    nameLocked = true;
+    document.getElementById('nameInput').disabled = true;
+    document.getElementById('lockNote').textContent = 'Your name is locked in for this session — reload the page to change it.';
+  }
+  render();
+}
+
+async function loadState(){
+  try{
+    const res = await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`);
+    if(!res.ok) return defaultState();
+    const data = await res.json();
+    if(data === null || data === undefined) return defaultState();
+    return data;
+  }catch(e){
+    return defaultState();
+  }
+}
+
+function defaultState(){
+  return {
+    phase:'idle', // idle -> playing -> tiebreak -> done
+    round:0, // 0 means not started; goes 1,2,3
+    pairs:[],
+    players:null,
+    tiebreak:null, // {candidates:[], target, guesses:{}}
+    finalLoser:null,
+    finalDare:null
+  };
+}
+
+function ensurePlayers(state){
+  if(!state.players) state.players = {};
+  ALL_PLAYERS.forEach(n=>{
+    if(!state.players[n]) state.players[n] = { points:0 };
+  });
+}
+
+async function saveState(state){
+  try{
+    await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state)
+    });
+  }catch(e){}
+}
+
+function findMyPair(state){
+  return state.pairs.find(p => p.a === myName || p.b === myName);
+}
+
+function partnerOf(pair){
+  return pair.a === myName ? pair.b : pair.a;
+}
+
+function shuffledPlayers(){
+  const players = [...ALL_PLAYERS];
+  for(let i = players.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i+1));
+    [players[i], players[j]] = [players[j], players[i]];
+  }
+  return players;
+}
+
+async function advance(){
+  const state = await loadState();
+  ensurePlayers(state);
+
+  if(state.round < 3){
+    // start next round
+    const players = shuffledPlayers();
+    const pairs = [];
+    for(let i = 0; i < players.length - 1; i += 2){
+      pairs.push({ a: players[i], b: players[i+1], choiceA:null, choiceB:null, result:null, guessA:null, guessB:null, target:null, dareShown:null });
+    }
+    state.round += 1;
+    state.pairs = pairs;
+    state.phase = 'playing';
+  } else {
+    // round 3 already happened, compute standings
+    const totals = Object.entries(state.players).map(([name, s]) => ({ name, points: s.points }));
+    const minPoints = Math.min(...totals.map(t => t.points));
+    const lowest = totals.filter(t => t.points === minPoints).map(t => t.name);
+    if(lowest.length === 1){
+      state.finalLoser = lowest[0];
+      state.finalDare = DARES[Math.floor(Math.random()*DARES.length)];
+      state.phase = 'done';
+    } else {
+      state.tiebreak = { candidates: lowest, target: Math.floor(Math.random()*25)+1, guesses:{} };
+      state.phase = 'tiebreak';
+    }
+  }
+  await saveState(state);
+  render();
+}
+
+async function makeChoice(choice){
+  const state = await loadState();
+  ensurePlayers(state);
+  const pair = findMyPair(state);
+  if(!pair) return;
+  if(pair.a === myName) pair.choiceA = choice; else pair.choiceB = choice;
+
+  if(pair.choiceA && pair.choiceB){
+    if(pair.choiceA === 'split' && pair.choiceB === 'split'){
+      state.players[pair.a].points += 1;
+      state.players[pair.b].points += 1;
+      pair.result = 'safe';
+    } else if(pair.choiceA === 'steal' && pair.choiceB === 'steal'){
+      pair.result = 'duel';
+      pair.target = Math.floor(Math.random()*25) + 1;
+    } else {
+      const stealer = pair.choiceA === 'steal' ? pair.a : pair.b;
+      const splitter = pair.choiceA === 'steal' ? pair.b : pair.a;
+      state.players[stealer].points += 2;
+      pair.result = 'betrayed';
+      pair.betrayedLoser = splitter;
+    }
+  }
+  await saveState(state);
+  render();
+}
+
+async function submitDuelGuess(){
+  const val = parseInt(document.getElementById('duelGuess').value, 10);
+  if(!val || val < 1 || val > 25){ alert('Enter a number between 1 and 25.'); return; }
+  const state = await loadState();
+  ensurePlayers(state);
+  const pair = findMyPair(state);
+  if(!pair || pair.result !== 'duel') return;
+  if(pair.a === myName) pair.guessA = val; else pair.guessB = val;
+
+  if(pair.guessA !== null && pair.guessB !== null){
+    const distA = Math.abs(pair.guessA - pair.target);
+    const distB = Math.abs(pair.guessB - pair.target);
+    if(distA === distB){
+      // re-roll target, clear guesses
+      pair.target = Math.floor(Math.random()*25) + 1;
+      pair.guessA = null; pair.guessB = null;
+    } else {
+      const winner = distA < distB ? pair.a : pair.b;
+      state.players[winner].points += 2;
+      pair.result = 'duel_resolved';
+      pair.duelWinner = winner;
+    }
+  }
+  await saveState(state);
+  render();
+}
+
+async function submitTiebreakGuess(){
+  const val = parseInt(document.getElementById('tiebreakGuess').value, 10);
+  if(!val || val < 1 || val > 25){ alert('Enter a number between 1 and 25.'); return; }
+  const state = await loadState();
+  if(!state.tiebreak || !state.tiebreak.candidates.includes(myName)) return;
+  state.tiebreak.guesses[myName] = val;
+
+  const allIn = state.tiebreak.candidates.every(n => state.tiebreak.guesses[n] !== undefined);
+  if(allIn){
+    const target = state.tiebreak.target;
+    const distances = state.tiebreak.candidates.map(n => ({ name:n, dist: Math.abs(state.tiebreak.guesses[n] - target) }));
+    const maxDist = Math.max(...distances.map(d => d.dist));
+    const farthest = distances.filter(d => d.dist === maxDist).map(d => d.name);
+    if(farthest.length === 1){
+      state.finalLoser = farthest[0];
+      state.finalDare = DARES[Math.floor(Math.random()*DARES.length)];
+      state.phase = 'done';
+      state.tiebreak = null;
+    } else {
+      state.tiebreak = { candidates: farthest, target: Math.floor(Math.random()*25)+1, guesses:{} };
+    }
+  }
+  await saveState(state);
+  render();
+}
+
+async function resetGame(){
+  if(!confirm('Reset the whole game?')) return;
+  await saveState(defaultState());
+  render();
+}
+
+function toggleAdmin(){
+  const p = document.getElementById('adminPanel');
+  if(p.style.display === 'none' || !p.style.display){
+    const pass = prompt('Admin passcode:');
+    if(pass !== 'intrusive25'){ alert('Incorrect passcode.'); return; }
+    p.style.display = 'block';
+  } else {
+    p.style.display = 'none';
+  }
+}
+
+function buildFeed(state){
+  const list = document.getElementById('feedList');
+  list.innerHTML = '';
+  if(state.pairs.length === 0){
+    list.innerHTML = '<div class="status">No results yet.</div>';
+    return;
+  }
+  state.pairs.forEach(p=>{
+    const row = document.createElement('div');
+    row.className = 'feed-row';
+    if(p.result === 'safe'){
+      row.className += ' feed-safe';
+      row.textContent = `${p.a} & ${p.b} — both split, +1 each.`;
+    } else if(p.result === 'betrayed'){
+      const stealer = p.betrayedLoser === p.a ? p.b : p.a;
+      row.className += ' feed-dare';
+      row.textContent = `${p.a} & ${p.b} — ${stealer} betrayed ${p.betrayedLoser}. +2 for the stealer.`;
+    } else if(p.result === 'duel_resolved'){
+      const loser = p.duelWinner === p.a ? p.b : p.a;
+      row.textContent = `${p.a} & ${p.b} — both stole, duel: ${p.duelWinner} guessed closer. +2.`;
+    } else if(p.result === 'duel'){
+      row.textContent = `${p.a} & ${p.b} — both stole, number duel in progress...`;
+    } else {
+      row.textContent = `${p.a} & ${p.b} — deciding...`;
+    }
+    list.appendChild(row);
+  });
+}
+
+function buildLeaderboard(state){
+  const list = document.getElementById('leaderboardList');
+  list.innerHTML = '';
+  if(!state.players){
+    list.innerHTML = '<div class="status">No stats yet — start a round.</div>';
+    return;
+  }
+  const rows = Object.entries(state.players)
+    .map(([name, s]) => ({ name, points: s.points }))
+    .sort((a,b) => b.points - a.points);
+  rows.forEach(r=>{
+    const row = document.createElement('div');
+    row.className = 'feed-row';
+    row.textContent = `${r.name} — ${r.points} pt${r.points===1?'':'s'}`;
+    list.appendChild(row);
+  });
+}
+
+async function render(){
+  const state = await loadState();
+  ensurePlayers(state);
+  const badge = document.getElementById('phaseBadge');
+  const waitingBox = document.getElementById('waitingBox');
+  const gameBox = document.getElementById('gameBox');
+  const choiceBox = document.getElementById('choiceBox');
+  const duelBox = document.getElementById('duelBox');
+  const resultBox = document.getElementById('resultBox');
+  const tiebreakPanel = document.getElementById('tiebreakPanel');
+  const finalPanel = document.getElementById('finalPanel');
+  const adminStatus = document.getElementById('adminStatus');
+  const advanceBtn = document.getElementById('advanceBtn');
+
+  waitingBox.style.display = 'none';
+  gameBox.style.display = 'none';
+  choiceBox.style.display = 'none';
+  duelBox.style.display = 'none';
+  resultBox.style.display = 'none';
+  tiebreakPanel.style.display = 'none';
+  finalPanel.style.display = 'none';
+
+  adminStatus.textContent = `Round: ${state.round}/3 · Phase: ${state.phase}`;
+  advanceBtn.textContent = state.round < 3 ? `Start Round ${state.round + 1}` : (state.phase === 'playing' ? 'Finish & Show Standings' : 'Start Round 1');
+
+  buildFeed(state);
+  buildLeaderboard(state);
+
+  if(state.phase === 'done'){
+    badge.textContent = 'Game Over';
+    finalPanel.style.display = 'block';
+    document.getElementById('finalName').textContent = state.finalLoser;
+    document.getElementById('finalDareText').textContent = state.finalDare;
+    return;
+  }
+
+  if(state.phase === 'tiebreak'){
+    badge.textContent = 'Tiebreaker';
+    tiebreakPanel.style.display = 'block';
+    const t = state.tiebreak;
+    if(!myName || !t.candidates.includes(myName)){
+      document.getElementById('tiebreakInputBox').style.display = 'none';
+      document.getElementById('tiebreakStatus').textContent = myName
+        ? `You're safe. ${t.candidates.join(', ')} are dueling for last place.`
+        : 'Select your name to see if you are involved.';
+    } else if(t.guesses[myName] !== undefined){
+      document.getElementById('tiebreakInputBox').style.display = 'none';
+      document.getElementById('tiebreakStatus').textContent = 'Guess locked in. Waiting on the others...';
+    } else {
+      document.getElementById('tiebreakInputBox').style.display = 'block';
+      document.getElementById('tiebreakStatus').textContent = `Tied with: ${t.candidates.filter(n=>n!==myName).join(', ')}`;
+    }
+    return;
+  }
+
+  if(state.phase === 'idle' || !myName){
+    badge.textContent = state.phase === 'idle' ? 'Waiting to Start' : 'Loading';
+    waitingBox.style.display = 'block';
+    document.getElementById('waitingText').textContent = !myName ? 'Select your name.' : 'Waiting for the admin to start a round.';
+    return;
+  }
+
+  const pair = findMyPair(state);
+  if(!pair){
+    badge.textContent = `Round ${state.round} — Sitting Out`;
+    waitingBox.style.display = 'block';
+    document.getElementById('waitingText').textContent = 'You are not paired this round — watch the feed below.';
+    return;
+  }
+
+  badge.textContent = `Round ${state.round} of 3`;
+  gameBox.style.display = 'block';
+  document.getElementById('roundLabel').textContent = state.round;
+  document.getElementById('partnerName').textContent = partnerOf(pair);
+
+  const myChoice = pair.a === myName ? pair.choiceA : pair.choiceB;
+  const myGuess = pair.a === myName ? pair.guessA : pair.guessB;
+
+  if(pair.result === 'safe'){
+    resultBox.style.display = 'block';
+    document.getElementById('resultText').textContent = 'You both split — +1 point each.';
+    return;
+  }
+
+  if(pair.result === 'betrayed'){
+    resultBox.style.display = 'block';
+    const iWasStealer = pair.betrayedLoser !== myName;
+    document.getElementById('resultText').textContent = iWasStealer
+      ? `You betrayed ${pair.betrayedLoser} and got +2.`
+      : `You got betrayed by ${partnerOf(pair)}. They got +2, you got 0.`;
+    return;
+  }
+
+  if(pair.result === 'duel_resolved'){
+    resultBox.style.display = 'block';
+    const iWon = pair.duelWinner === myName;
+    document.getElementById('resultText').textContent = iWon
+      ? `Both stole. You guessed closer — +2 points.`
+      : `Both stole. ${pair.duelWinner} guessed closer — they got +2, you got 0.`;
+    return;
+  }
+
+  if(pair.result === 'duel'){
+    duelBox.style.display = 'block';
+    document.getElementById('duelStatus').textContent = myGuess !== null
+      ? `You guessed ${myGuess}. Waiting on your partner...`
+      : 'Enter your guess.';
+    return;
+  }
+
+  choiceBox.style.display = 'block';
+  document.getElementById('splitBtn').classList.toggle('chosen', myChoice === 'split');
+  document.getElementById('stealBtn').classList.toggle('chosen', myChoice === 'steal');
+  document.getElementById('choiceStatus').textContent = myChoice
+    ? `You picked ${myChoice}. Waiting on your partner...`
+    : 'Choose wisely.';
+}
+
+populateNames();
+render();
+setInterval(render, 1500);
+</script>
+
+</body>
+</html>
