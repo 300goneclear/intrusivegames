@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intrusive — Games</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,500&family=Jost:wght@300;400;500&display=swap');
+  :root{
+    --black:#0a0908; --black2:#141210; --gold:#c9a54a; --gold-bright:#e8cd82; --cream:#f3ecdd;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    padding:32px 16px; font-family:'Jost',sans-serif; color:var(--cream);
+    background: radial-gradient(circle at 50% 0%, rgba(201,165,74,0.10), transparent 55%), var(--black);
+  }
+  .card{
+    width:100%; max-width:480px; text-align:center; padding:56px 36px;
+    border:1px solid rgba(201,165,74,0.3); background:var(--black2); position:relative;
+  }
+  .corner{position:absolute; width:24px; height:24px; border:1px solid var(--gold); opacity:0.75;}
+  .corner.tl{top:12px; left:12px; border-right:none; border-bottom:none;}
+  .corner.tr{top:12px; right:12px; border-left:none; border-bottom:none;}
+  .corner.bl{bottom:12px; left:12px; border-right:none; border-top:none;}
+  .corner.br{bottom:12px; right:12px; border-left:none; border-top:none;}
+  .eyebrow{letter-spacing:0.35em; text-transform:uppercase; font-size:11px; color:var(--gold); margin-bottom:14px;}
+  h1{font-family:'Playfair Display',serif; font-style:italic; font-weight:600; font-size:42px; color:var(--gold-bright); margin-bottom:12px;}
+  .sub{font-size:14px; color:rgba(243,236,221,0.55); line-height:1.6; max-width:320px; margin:0 auto 36px;}
+  .divider{width:44px; height:1px; background:var(--gold); margin:0 auto 34px; opacity:0.6;}
+  .game-link{
+    display:block; text-align:left; padding:18px 20px; margin-bottom:14px;
+    border:1px solid var(--gold); text-decoration:none; color:var(--cream);
+    transition:0.2s; position:relative;
+  }
+  .game-link:hover{background:rgba(201,165,74,0.08);}
+  .game-title{font-family:'Playfair Display',serif; font-style:italic; font-size:19px; color:var(--gold-bright); margin-bottom:4px;}
+  .game-desc{font-size:12px; color:rgba(243,236,221,0.5); line-height:1.4;}
+  .arrow{position:absolute; right:20px; top:50%; transform:translateY(-50%); color:var(--gold); font-size:18px;}
+  .foot{margin-top:30px; font-size:10px; letter-spacing:0.15em; color:rgba(243,236,221,0.28); text-transform:uppercase;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+
+    <div class="eyebrow">Intrusive</div>
+    <h1>Choose Your Game</h1>
+    <p class="sub">Pick a game below to play live with the group.</p>
+    <div class="divider"></div>
+
+    <a class="game-link" href="numbers.html">
+      <div class="game-title">Number Match</div>
+      <div class="game-desc">Blind number picking to reveal secret pairings.</div>
+      <span class="arrow">→</span>
+    </a>
+
+    <a class="game-link" href="imposter.html">
+      <div class="game-title">Who's The Imposter?</div>
+      <div class="game-desc">Everyone gets a secret word — except one imposter.</div>
+      <span class="arrow">→</span>
+    </a>
+
+    <div class="foot">Members Only · Share Responsibly</div>
+  </div>
+</body>
+</html>

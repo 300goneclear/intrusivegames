@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Intrusive — Number Match</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,500&family=Jost:wght@300;400;500&display=swap');
+  :root{
+    --black:#0a0908; --black2:#141210; --gold:#c9a54a; --gold-bright:#e8cd82;
+    --cream:#f3ecdd; --taken:#3a2f1a; --girl:#c9557a; --guy:#4a7fc9;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    min-height:100vh; background:
+      radial-gradient(circle at 50% 0%, rgba(201,165,74,0.10), transparent 55%), var(--black);
+    font-family:'Jost',sans-serif; color:var(--cream);
+    display:flex; flex-direction:column; align-items:center; padding:32px 16px;
+  }
+  h1{font-family:'Playfair Display',serif; font-style:italic; font-size:32px; color:var(--gold-bright); margin-bottom:4px; text-align:center;}
+  .sub{font-size:12px; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:24px;text-align:center;}
+  .panel{width:100%; max-width:480px; border:1px solid rgba(201,165,74,0.3); background:var(--black2); padding:24px; margin-bottom:20px;}
+  label{font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:6px;}
+  input,select{
+    width:100%; padding:12px; background:var(--black); border:1px solid rgba(201,165,74,0.3);
+    color:var(--cream); font-family:'Jost',sans-serif; font-size:14px; margin-bottom:14px;
+  }
+  button{
+    width:100%; padding:14px; background:var(--gold); color:var(--black); border:none;
+    font-family:'Jost',sans-serif; font-size:13px; letter-spacing:0.12em; text-transform:uppercase;
+    cursor:pointer; transition:0.2s;
+  }
+  button:hover{background:var(--gold-bright);}
+  button:disabled{background:#555; color:#999; cursor:not-allowed;}
+  .grid{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:10px;}
+  .num{
+    aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--gold); background:transparent; color:var(--gold-bright);
+    font-size:16px; cursor:pointer; transition:0.15s;
+  }
+  .num:hover{background:rgba(201,165,74,0.15);}
+  .num.taken{background:var(--taken); color:#776543; border-color:#443a22; cursor:not-allowed;}
+  .num.mine{background:var(--gold); color:var(--black); font-weight:600;}
+  .status{font-size:12px; color:rgba(243,236,221,0.6); text-align:center; margin-top:14px; line-height:1.6;}
+  .phase-badge{
+    display:inline-block; padding:6px 14px; border:1px solid var(--gold); font-size:11px;
+    letter-spacing:0.12em; text-transform:uppercase; color:var(--gold-bright); margin-bottom:20px;
+  }
+  .pair-row{display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(201,165,74,0.15); font-size:14px;}
+  .pair-row:last-child{border-bottom:none;}
+  .pair-num{color:var(--gold); font-weight:600; margin-right:8px;}
+  .admin{margin-top:8px; opacity:0.55; font-size:11px; text-align:center;}
+  .admin a{color:var(--gold); cursor:pointer; text-decoration:underline;}
+  .toggle-row{display:flex; gap:10px; margin-bottom:14px;}
+  .toggle-row button{width:auto; flex:1; background:transparent; border:1px solid var(--gold); color:var(--gold-bright);}
+  .toggle-row button.active{background:var(--gold); color:var(--black);}
+  .error{color:#e88; font-size:12px; text-align:center; margin-top:10px;}
+</style>
+</head>
+<body>
+
+<h1>Intrusive</h1>
+<div class="sub">Number Match</div>
+<a href="index.html" style="display:block; text-align:center; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); margin-bottom:18px; text-decoration:underline;">← Back to Games</a>
+<div class="phase-badge" id="phaseBadge">Loading...</div>
+
+<div class="panel" id="playerPanel">
+  <div class="toggle-row">
+    <button id="girlBtn" onclick="setGender('Girl')">Girl</button>
+    <button id="guyBtn" onclick="setGender('Guy')">Guy</button>
+  </div>
+  <label>Your Name</label>
+  <select id="nameInput"><option value="">Select your name...</option></select>
+  <div class="status" id="playerStatus">Enter your name and gender to begin.</div>
+  <div class="grid" id="grid"></div>
+  <div id="revealBox" style="display:none; margin-top:16px; padding:16px; border:1px solid var(--gold); text-align:center;">
+    <div style="font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); margin-bottom:6px;">You matched with</div>
+    <div id="revealName" style="font-family:'Playfair Display',serif; font-style:italic; font-size:22px; color:var(--gold-bright);"></div>
+  </div>
+  <div class="error" id="errorMsg"></div>
+</div>
+
+
+<div class="admin">
+  <a onclick="toggleAdmin()">Admin controls</a>
+  <div id="adminPanel" style="display:none; margin-top:14px;">
+    <button onclick="advancePhase()" id="advanceBtn">Advance Phase →</button>
+    <button onclick="resetGame()" style="margin-top:8px; background:transparent; border:1px solid #c95555; color:#e88;">Reset Game</button>
+  </div>
+</div>
+
+<script>
+const STATE_KEY = 'game-state';
+let gender = null;
+let myName = null;
+let pollTimer = null;
+
+const NAMES = {
+  Girl: ["Raven","Tyla","Sophie","Renae","Annicadiya","Mimi Baker","Laura (Tonbridge)","Labi","Abigail","Megan","Taylor Crawford","Eshanti","Sarah Solomon","Beth","Bri","Shin","Laura (Cardiff)"],
+  Guy: ["Nyall","Renz","Promise","Jordie","Ryco","Jefé"]
+};
+
+function populateNames(){
+  const sel = document.getElementById('nameInput');
+  sel.innerHTML = '<option value="">Select your name...</option>';
+  (NAMES[gender] || []).forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n;
+    opt.textContent = n;
+    sel.appendChild(opt);
+  });
+}
+
+async function loadState(){
+  try{
+    const res = await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`);
+    showDebug('load status: ' + res.status);
+    if(!res.ok) return defaultState();
+    const data = await res.json();
+    return data || defaultState();
+  }catch(e){
+    showDebug('LOAD ERROR: ' + e.message);
+    return defaultState();
+  }
+}
+
+function showDebug(msg){
+  let el = document.getElementById('debugLine');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'debugLine';
+    el.style.cssText = 'position:fixed; bottom:0; left:0; right:0; background:#000; color:#8f8; font-size:10px; padding:6px; z-index:9999; text-align:center; font-family:monospace;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+}
+
+function defaultState(){
+  return { phase:'guys', round:1, girlPicks:{}, guyPicks:{} };
+}
+
+async function saveState(state){
+  try{
+    const res = await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`, {
+      method: 'POST',
+      body: JSON.stringify(state)
+    });
+    showDebug('save status: ' + res.status);
+  }catch(e){
+    showDebug('SAVE ERROR: ' + e.message);
+  }
+}
+
+
+function setGender(g){
+  gender = g;
+  populateNames();
+  myName = '';
+  document.getElementById('girlBtn').classList.toggle('active', g==='Girl');
+  document.getElementById('guyBtn').classList.toggle('active', g==='Guy');
+  render();
+}
+
+async function pickNumber(n){
+  const errEl = document.getElementById('errorMsg');
+  errEl.textContent = '';
+  myName = document.getElementById('nameInput').value;
+  if(!myName){ errEl.textContent = 'Select your name first.'; return; }
+  if(!gender){ errEl.textContent = 'Select Girl or Guy first.'; return; }
+
+  const state = await loadState();
+  const picks = gender === 'Girl' ? state.girlPicks : state.guyPicks;
+  const activePhase = (gender === 'Guy' && state.phase === 'guys') || (gender === 'Girl' && state.phase === 'girls');
+  if(!activePhase){ errEl.textContent = 'It is not your turn to pick yet.'; return; }
+  if(gender === 'Girl' && !state.guyPicks[n]){ errEl.textContent = 'That number was never picked by a guy.'; return; }
+  if(picks[n]){ errEl.textContent = 'That number is already taken.'; return; }
+  // remove any previous pick by this person
+  for(const key in picks){ if(picks[key] === myName) delete picks[key]; }
+  picks[n] = myName;
+  await saveState(state);
+  render();
+}
+
+async function advancePhase(){
+  const state = await loadState();
+  if(state.phase === 'guys') state.phase = 'girls';
+  else { state.phase = 'guys'; state.round += 1; state.girlPicks = {}; state.guyPicks = {}; }
+  await saveState(state);
+  render();
+}
+
+async function resetGame(){
+  if(!confirm('Reset all picks for this round?')) return;
+  await saveState(defaultState());
+  render();
+}
+
+function toggleAdmin(){
+  const p = document.getElementById('adminPanel');
+  if(p.style.display === 'none' || !p.style.display){
+    const pass = prompt('Admin passcode:');
+    if(pass !== 'intrusive25'){ alert('Incorrect passcode.'); return; }
+    p.style.display = 'block';
+  } else {
+    p.style.display = 'none';
+  }
+}
+
+function buildGrid(state){
+  const gridEl = document.getElementById('grid');
+  gridEl.innerHTML = '';
+  const picks = gender === 'Girl' ? state.girlPicks : (gender === 'Guy' ? state.guyPicks : {});
+
+  let numbersToShow = [];
+  if(gender === 'Guy'){
+    for(let i=1;i<=25;i++) numbersToShow.push(i);
+  } else if(gender === 'Girl'){
+    // girls can only pick from numbers the guys claimed
+    numbersToShow = Object.keys(state.guyPicks).map(Number).sort((a,b)=>a-b);
+  }
+
+  if(gender === 'Girl' && numbersToShow.length === 0){
+    gridEl.innerHTML = '<div class="status">No numbers available yet — waiting on the guys.</div>';
+    return;
+  }
+
+  numbersToShow.forEach(i=>{
+    const btn = document.createElement('button');
+    btn.className = 'num';
+    btn.textContent = i;
+    if(picks[i]){
+      btn.classList.add(picks[i] === myName ? 'mine' : 'taken');
+    }
+    btn.onclick = () => pickNumber(i);
+    gridEl.appendChild(btn);
+  });
+}
+
+
+
+async function render(){
+  const state = await loadState();
+  const badge = document.getElementById('phaseBadge');
+  const playerPanel = document.getElementById('playerPanel');
+  playerPanel.style.display = 'block';
+
+  if(state.phase === 'guys'){
+    badge.textContent = 'Guys Picking Numbers';
+  } else {
+    badge.textContent = 'Girls Picking Numbers (blind)';
+  }
+
+  const statusEl = document.getElementById('playerStatus');
+  if(gender === 'Guy' && state.phase !== 'guys'){
+    statusEl.textContent = 'Numbers locked in — check below if a girl has matched with you.';
+  } else if(gender === 'Girl' && state.phase !== 'girls'){
+    statusEl.textContent = 'Waiting for the guys to finish picking.';
+  } else if(gender){
+    statusEl.textContent = 'Tap a free number below.';
+  } else {
+    statusEl.textContent = 'Select your name to begin.';
+  }
+
+  buildGrid(state);
+
+  const revealBox = document.getElementById('revealBox');
+  const revealNameEl = document.getElementById('revealName');
+  let myNumber = null;
+  if(gender === 'Girl'){
+    for(const k in state.girlPicks){ if(state.girlPicks[k] === myName) myNumber = Number(k); }
+    if(myNumber && state.guyPicks[myNumber]){
+      revealBox.style.display = 'block';
+      revealNameEl.textContent = state.guyPicks[myNumber];
+    } else {
+      revealBox.style.display = 'none';
+    }
+  } else if(gender === 'Guy'){
+    for(const k in state.guyPicks){ if(state.guyPicks[k] === myName) myNumber = Number(k); }
+    if(myNumber && state.girlPicks[myNumber]){
+      revealBox.style.display = 'block';
+      revealNameEl.textContent = state.girlPicks[myNumber];
+    } else {
+      revealBox.style.display = 'none';
+    }
+  } else {
+    revealBox.style.display = 'none';
+  }
+}
+
+document.getElementById('nameInput').addEventListener('change', ()=>{ myName = document.getElementById('nameInput').value; });
+
+render();
+pollTimer = setInterval(render, 1500);
+</script>
+
+</body>
+</html>
