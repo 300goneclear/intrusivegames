@@ -171,9 +171,10 @@ function onNameChange(){
 async function loadState(){
   try{
     const res = await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`);
-    if(res.status === 404) return defaultState();
-    const text = await res.text();
-    return text ? JSON.parse(text) : defaultState();
+    if(!res.ok) return defaultState();
+    const data = await res.json();
+    if(data === null || data === undefined) return defaultState();
+    return data;
   }catch(e){
     return defaultState();
   }
@@ -190,10 +191,15 @@ function defaultState(){
 }
 
 async function saveState(state){
-  await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`, {
-    method: 'POST',
-    body: JSON.stringify(state)
-  });
+  try{
+    await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state)
+    });
+  }catch(e){
+    // fail silently, next poll will retry
+  }
 }
 
 async function registerPlayer(){
