@@ -20,12 +20,20 @@
   h1{font-family:'Playfair Display',serif; font-style:italic; font-size:32px; color:var(--gold-bright); margin-bottom:4px; text-align:center;}
   .sub{font-size:12px; letter-spacing:0.15em; text-transform:uppercase; color:var(--gold); margin-bottom:6px;text-align:center;}
   .backlink{display:block; text-align:center; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); margin-bottom:18px; text-decoration:underline;}
+  .rules{
+    width:100%; max-width:480px; border:1px solid rgba(201,165,74,0.3); background:var(--black2);
+    padding:18px 20px; margin-bottom:20px; font-size:12.5px; line-height:1.7; color:rgba(243,236,221,0.75);
+  }
+  .rules b{color:var(--gold-bright);}
+  .rules .warn{color:#e8a5a5; margin-top:8px; display:block;}
   .panel{width:100%; max-width:480px; border:1px solid rgba(201,165,74,0.3); background:var(--black2); padding:24px; margin-bottom:20px;}
   label{font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gold); display:block; margin-bottom:6px;}
   select{
     width:100%; padding:12px; background:var(--black); border:1px solid rgba(201,165,74,0.3);
     color:var(--cream); font-family:'Jost',sans-serif; font-size:14px; margin-bottom:14px;
   }
+  select:disabled{opacity:0.6;}
+  .lock-note{font-size:11px; color:rgba(243,236,221,0.4); margin:-8px 0 14px;}
   button{
     width:100%; padding:14px; background:var(--gold); color:var(--black); border:none;
     font-family:'Jost',sans-serif; font-size:13px; letter-spacing:0.12em; text-transform:uppercase;
@@ -66,11 +74,17 @@
 <a href="index.html" class="backlink">← Back to Games</a>
 <div class="phase-badge" id="phaseBadge">Loading...</div>
 
+<div class="rules">
+  <b>How it works:</b> Everyone playing registers first. Once the round starts, everyone gets the same secret word — except one random imposter, who gets nothing and has to bluff. Talk it out without saying the word outright. After 6 minutes, voting opens — vote who you think is faking it. Once everyone's voted, the most-voted player is eliminated and a new 6-minute round begins. This repeats until the imposter is caught, or only 2 players remain and the imposter escapes.
+  <span class="warn">⚠ Don't click through other people's names to peek at their word or role — only view your own. Keep your word and suspicions to yourself until voting.</span>
+</div>
+
 <div class="panel">
   <label>Your Name</label>
   <select id="nameInput" onchange="onNameChange()">
     <option value="">Select your name...</option>
   </select>
+  <div class="lock-note" id="lockNote"></div>
 
   <div id="registerBox" style="display:none;">
     <div class="status" id="registerStatus"></div>
@@ -93,6 +107,7 @@
   <div id="voteBox" style="display:none; margin-top:10px;">
     <label>Vote to eliminate</label>
     <div id="voteList"></div>
+    <div class="status" id="voteProgress"></div>
   </div>
 
   <div id="revealBox" style="display:none; margin-top:20px;">
@@ -115,6 +130,8 @@
 <script>
 const STATE_KEY = 'imposter-state-v2';
 let myName = '';
+let nameLocked = false;
+let lastAutoTallyKey = null;
 
 const ALL_PLAYERS = [
   "Raven","Tyla","Sophie","Renae","Annicadiya","Mimi Baker","Laura (Tonbridge)","Labi",
@@ -128,8 +145,7 @@ const WORDS = [
   "Christmas Dinner","Nightclub","University Lecture","Zoo","Casino","Theme Park"
 ];
 
-const DISCUSSION_SECONDS = 7 * 60;
-const REVOTE_DISCUSSION_SECONDS = 2 * 60;
+const DISCUSSION_SECONDS = 6 * 60;
 
 function populateNames(){
   const sel = document.getElementById('nameInput');
@@ -142,32 +158,25 @@ function populateNames(){
 }
 
 function onNameChange(){
+  if(nameLocked) return;
   myName = document.getElementById('nameInput').value;
+  if(myName){
+    nameLocked = true;
+    document.getElementById('nameInput').disabled = true;
+    document.getElementById('lockNote').textContent = 'Your name is locked in for this session — reload the page to change it.';
+  }
   render();
 }
 
 async function loadState(){
   try{
     const res = await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`);
-    showDebug('load status: ' + res.status);
-    if(!res.ok) return defaultState();
-    const data = await res.json();
-    return data || defaultState();
+    if(res.status === 404) return defaultState();
+    const text = await res.text();
+    return text ? JSON.parse(text) : defaultState();
   }catch(e){
-    showDebug('LOAD ERROR: ' + e.message);
     return defaultState();
   }
-}
-
-function showDebug(msg){
-  let el = document.getElementById('debugLine');
-  if(!el){
-    el = document.createElement('div');
-    el.id = 'debugLine';
-    el.style.cssText = 'position:fixed; bottom:0; left:0; right:0; background:#000; color:#8f8; font-size:10px; padding:6px; z-index:9999; text-align:center; font-family:monospace;';
-    document.body.appendChild(el);
-  }
-  el.textContent = msg;
 }
 
 function defaultState(){
@@ -181,15 +190,10 @@ function defaultState(){
 }
 
 async function saveState(state){
-  try{
-    const res = await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`, {
-      method: 'POST',
-      body: JSON.stringify(state)
-    });
-    showDebug('save status: ' + res.status);
-  }catch(e){
-    showDebug('SAVE ERROR: ' + e.message);
-  }
+  await fetch(`/.netlify/functions/game-state?key=${STATE_KEY}`, {
+    method: 'POST',
+    body: JSON.stringify(state)
+  });
 }
 
 async function registerPlayer(){
@@ -235,7 +239,7 @@ async function castVote(target){
 
 async function tallyVotes(){
   const state = await loadState();
-  if(state.phase !== 'voting'){ alert('Voting is not open.'); return; }
+  if(state.phase !== 'voting'){ return; }
   const tally = {};
   state.alive.forEach(p=>tally[p]=0);
   Object.values(state.votes).forEach(v=>{ if(tally[v] !== undefined) tally[v]++; });
@@ -258,7 +262,7 @@ async function tallyVotes(){
     state.outcome = 'imposter_wins';
   } else {
     state.phase = 'discussion';
-    state.timerEndsAt = Date.now() + REVOTE_DISCUSSION_SECONDS*1000;
+    state.timerEndsAt = Date.now() + DISCUSSION_SECONDS*1000;
   }
   await saveState(state);
   render();
@@ -301,7 +305,7 @@ function buildVoteList(state){
     const row = document.createElement('div');
     row.className = 'player-row';
     const voted = state.votes[myName] === p;
-    row.innerHTML = `<span>${p} <span class="vote-count">${tally[p]}</span></span>`;
+    row.innerHTML = `<span>${p}</span>`;
     const btn = document.createElement('button');
     btn.className = 'vote-btn';
     btn.textContent = voted ? '✓ Voted' : 'Vote';
@@ -310,6 +314,9 @@ function buildVoteList(state){
     row.appendChild(btn);
     list.appendChild(row);
   });
+
+  const votedCount = Object.keys(state.votes).length;
+  document.getElementById('voteProgress').textContent = `${votedCount} of ${state.alive.length} alive players have voted.`;
 }
 
 async function render(){
@@ -371,6 +378,11 @@ async function render(){
     const timerEl = document.getElementById('timerDisplay');
     timerEl.textContent = formatTime(remaining);
     timerEl.className = 'timer' + (remaining < 30000 ? ' low' : '');
+
+    if(remaining <= 0 && lastAutoTallyKey !== 'voting-open-' + state.eliminated.length){
+      lastAutoTallyKey = 'voting-open-' + state.eliminated.length;
+      openVoting();
+    }
     return;
   }
 
@@ -389,6 +401,12 @@ async function render(){
     }
     voteBox.style.display = 'block';
     buildVoteList(state);
+
+    const votedCount = Object.keys(state.votes).length;
+    if(votedCount >= state.alive.length && lastAutoTallyKey !== 'tally-' + state.eliminated.length){
+      lastAutoTallyKey = 'tally-' + state.eliminated.length;
+      tallyVotes();
+    }
     return;
   }
 
