@@ -120,11 +120,19 @@ const STATE_KEY = 'confessions-state';
 let myName = '';
 let nameLocked = false;
 
-const ALL_PLAYERS = [
-  "Raven","Tyla","Sophie","Renae","Annicadiya","Mimi Baker","Laura (Tonbridge)","Labi",
-  "Abigail","Megan","Taylor Crawford","Eshanti","Sarah Solomon","Beth","Bri","Shin","Laura (Cardiff)",
-  "Nyall","Renz","Promise","Jordie","Ryco","Jefé"
-];
+let ALL_PLAYERS = [];
+
+async function loadRoster(){
+  try{
+    const res = await fetch('/.netlify/functions/roster');
+    if(!res.ok) return;
+    const players = await res.json();
+    ALL_PLAYERS = players.map(p => p.name);
+    populateNames();
+  }catch(e){
+    // keep whatever ALL_PLAYERS already has
+  }
+}
 
 function populateNames(){
   const sel = document.getElementById('nameInput');
@@ -311,6 +319,8 @@ async function render(){
 }
 
 populateNames();
+loadRoster();
+setInterval(loadRoster, 15000);
 render();
 setInterval(render, 1500);
 </script>

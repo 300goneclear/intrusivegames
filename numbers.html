@@ -109,10 +109,23 @@ let gender = null;
 let myName = null;
 let nameLocked = false;
 
-const NAMES = {
-  Girl: ["Raven","Tyla","Sophie","Renae","Annicadiya","Mimi Baker","Laura (Tonbridge)","Labi","Abigail","Megan","Taylor Crawford","Eshanti","Sarah Solomon","Beth","Bri","Shin","Laura (Cardiff)"],
-  Guy: ["Nyall","Renz","Promise","Jordie","Ryco","Jefé"]
-};
+let NAMES = { Girl: [], Guy: [] };
+
+async function loadRoster(){
+  try{
+    const res = await fetch('/.netlify/functions/roster');
+    if(!res.ok) return;
+    const players = await res.json();
+    NAMES = { Girl: [], Guy: [] };
+    players.forEach(p => {
+      if(p.gender === 'Girl') NAMES.Girl.push(p.name);
+      else if(p.gender === 'Guy') NAMES.Guy.push(p.name);
+    });
+    if(gender) populateNames();
+  }catch(e){
+    // keep whatever NAMES already has
+  }
+}
 
 async function loadState(){
   try{
@@ -294,6 +307,8 @@ async function render(){
   }
 }
 
+loadRoster();
+setInterval(loadRoster, 15000);
 render();
 setInterval(render, 1500);
 </script>
