@@ -74,7 +74,7 @@
 <div class="phase-badge" id="phaseBadge">Loading...</div>
 
 <div class="rules">
-  <b>How it works:</b> 3 rounds, random pairs each time. Both split = +1 each. One steals, one splits = stealer gets +2, splitter gets 0. Both steal = a number duel: guess closest to a hidden target (1–25), winner gets +2, loser gets 0. After 3 rounds, whoever has the fewest points does a public dare. If it's a tie, everyone tied goes into one more number duel — this time, whoever's <b>farthest</b> from the target is the one who actually does it.
+  <b>How it works:</b> Register first if you're actually playing. Once the admin closes registration, 3 rounds begin — random pairs among registered players each round, blind Split or Steal. Both split = +1 each. One steals, one splits = stealer gets +2, splitter gets 0. Both steal = a number duel: guess closest to a hidden target (1–25), winner gets +2, loser gets 0. After 3 rounds, whoever has the fewest points does a public dare. If it's a tie, everyone tied goes into one more number duel — this time, whoever's <b>farthest</b> from the target is the one who actually does it.
   <span class="warn">⚠ Dares are meant to be funny, not humiliating. Skip anything that crosses a line for someone.</span>
 </div>
 
@@ -84,6 +84,11 @@
     <option value="">Select your name...</option>
   </select>
   <div class="lock-note" id="lockNote"></div>
+
+  <div id="registerBox" style="display:none;">
+    <div class="status" id="registerStatus"></div>
+    <button id="registerBtn" onclick="registerPlayer()">I'm Playing This Game</button>
+  </div>
 
   <div id="waitingBox" style="display:none;">
     <div class="status" id="waitingText">Waiting for the admin to start a round.</div>
@@ -227,11 +232,12 @@ function showDebug(msg){
 
 function defaultState(){
   return {
-    phase:'idle', // idle -> playing -> tiebreak -> done
-    round:0, // 0 means not started; goes 1,2,3
+    phase:'registration', // registration -> playing -> tiebreak -> done
+    round:0,
+    registered:[],
     pairs:[],
     players:null,
-    tiebreak:null, // {candidates:[], target, guesses:{}}
+    tiebreak:null,
     finalLoser:null,
     finalDare:null
   };
@@ -239,7 +245,7 @@ function defaultState(){
 
 function ensurePlayers(state){
   if(!state.players) state.players = {};
-  ALL_PLAYERS.forEach(n=>{
+  state.registered.forEach(n=>{
     if(!state.players[n]) state.players[n] = { points:0 };
   });
 }
@@ -262,8 +268,8 @@ function partnerOf(pair){
   return pair.a === myName ? pair.b : pair.a;
 }
 
-function shuffledPlayers(){
-  const players = [...ALL_PLAYERS];
+function shuffledPlayers(state){
+  const players = [...state.registered];
   for(let i = players.length - 1; i > 0; i--){
     const j = Math.floor(Math.random() * (i+1));
     [players[i], players[j]] = [players[j], players[i]];
@@ -271,13 +277,40 @@ function shuffledPlayers(){
   return players;
 }
 
+async function registerPlayer(){
+  if(!myName){ alert('Select your name first.'); return; }
+  const state = await loadState();
+  if(state.phase !== 'registration'){ alert('Registration is closed.'); return; }
+  if(!state.registered.includes(myName)) state.registered.push(myName);
+  await saveState(state);
+  render();
+}
+
 async function advance(){
   const state = await loadState();
+
+  if(state.phase === 'registration'){
+    if(state.registered.length < 4){ alert('Need at least 4 registered players.'); return; }
+    ensurePlayers(state);
+    const players = shuffledPlayers(state);
+    if(players.length % 2 !== 0) players.pop(); // odd one sits out this round
+    const pairs = [];
+    for(let i = 0; i < players.length - 1; i += 2){
+      pairs.push({ a: players[i], b: players[i+1], choiceA:null, choiceB:null, result:null, guessA:null, guessB:null, target:null, dareShown:null });
+    }
+    state.round = 1;
+    state.pairs = pairs;
+    state.phase = 'playing';
+    await saveState(state);
+    render();
+    return;
+  }
+
   ensurePlayers(state);
 
   if(state.round < 3){
-    // start next round
-    const players = shuffledPlayers();
+    const players = shuffledPlayers(state);
+    if(players.length % 2 !== 0) players.pop();
     const pairs = [];
     for(let i = 0; i < players.length - 1; i += 2){
       pairs.push({ a: players[i], b: players[i+1], choiceA:null, choiceB:null, result:null, guessA:null, guessB:null, target:null, dareShown:null });
@@ -286,7 +319,6 @@ async function advance(){
     state.pairs = pairs;
     state.phase = 'playing';
   } else {
-    // round 3 already happened, compute standings
     const totals = Object.entries(state.players).map(([name, s]) => ({ name, points: s.points }));
     const minPoints = Math.min(...totals.map(t => t.points));
     const lowest = totals.filter(t => t.points === minPoints).map(t => t.name);
@@ -452,6 +484,7 @@ async function render(){
   ensurePlayers(state);
   const badge = document.getElementById('phaseBadge');
   const waitingBox = document.getElementById('waitingBox');
+  const registerBox = document.getElementById('registerBox');
   const gameBox = document.getElementById('gameBox');
   const choiceBox = document.getElementById('choiceBox');
   const duelBox = document.getElementById('duelBox');
@@ -462,6 +495,7 @@ async function render(){
   const advanceBtn = document.getElementById('advanceBtn');
 
   waitingBox.style.display = 'none';
+  registerBox.style.display = 'none';
   gameBox.style.display = 'none';
   choiceBox.style.display = 'none';
   duelBox.style.display = 'none';
@@ -469,11 +503,30 @@ async function render(){
   tiebreakPanel.style.display = 'none';
   finalPanel.style.display = 'none';
 
-  adminStatus.textContent = `Round: ${state.round}/3 · Phase: ${state.phase}`;
-  advanceBtn.textContent = state.round < 3 ? `Start Round ${state.round + 1}` : (state.phase === 'playing' ? 'Finish & Show Standings' : 'Start Round 1');
+  adminStatus.textContent = `Registered: ${state.registered.length} · Round: ${state.round}/3 · Phase: ${state.phase}`;
+  advanceBtn.textContent = state.phase === 'registration'
+    ? 'Close Registration & Start Round 1'
+    : (state.round < 3 ? `Start Round ${state.round + 1}` : (state.phase === 'playing' ? 'Finish & Show Standings' : 'Start Round 1'));
 
   buildFeed(state);
   buildLeaderboard(state);
+
+  if(state.phase === 'registration'){
+    badge.textContent = 'Registration Open';
+    if(!myName){
+      waitingBox.style.display = 'block';
+      document.getElementById('waitingText').textContent = 'Select your name to register.';
+    } else {
+      registerBox.style.display = 'block';
+      const isIn = state.registered.includes(myName);
+      document.getElementById('registerStatus').textContent = isIn
+        ? `You're in! ${state.registered.length} player(s) registered so far.`
+        : `${state.registered.length} player(s) registered so far.`;
+      document.getElementById('registerBtn').disabled = isIn;
+      document.getElementById('registerBtn').textContent = isIn ? "✓ You're Registered" : "I'm Playing This Game";
+    }
+    return;
+  }
 
   if(state.phase === 'done'){
     badge.textContent = 'Game Over';
@@ -502,10 +555,10 @@ async function render(){
     return;
   }
 
-  if(state.phase === 'idle' || !myName){
-    badge.textContent = state.phase === 'idle' ? 'Waiting to Start' : 'Loading';
+  if(!myName){
+    badge.textContent = 'Loading';
     waitingBox.style.display = 'block';
-    document.getElementById('waitingText').textContent = !myName ? 'Select your name.' : 'Waiting for the admin to start a round.';
+    document.getElementById('waitingText').textContent = 'Select your name.';
     return;
   }
 

@@ -102,9 +102,6 @@
       <div id="guessList"></div>
       <div class="status" id="guessProgress"></div>
     </div>
-    <div id="authorRevealBox" style="display:none;">
-      <div class="author-reveal" id="authorName">—</div>
-    </div>
   </div>
 </div>
 
@@ -113,7 +110,6 @@
   <div id="adminPanel" style="display:none; margin-top:14px; max-width:480px;">
     <div class="status" id="adminStatus"></div>
     <button onclick="startReveal()">Close Submissions &amp; Start Reveal</button>
-    <button class="secondary" onclick="revealAuthor()">Reveal Author</button>
     <button class="secondary" onclick="nextConfession()">Next Confession →</button>
     <button class="danger" onclick="resetGame()">Reset Game</button>
   </div>
@@ -168,7 +164,6 @@ function defaultState(){
     phase:'submitting',
     confessions:[],
     revealedIndex:-1,
-    authorShown:false,
     guesses:{}
   };
 }
@@ -206,7 +201,6 @@ async function startReveal(){
   if(state.confessions.length < 2){ alert('Need at least 2 confessions.'); return; }
   state.phase = 'revealing';
   state.revealedIndex = 0;
-  state.authorShown = false;
   state.guesses = {};
   await saveState(state);
   render();
@@ -218,16 +212,8 @@ async function nextConfession(){
     state.phase = 'done';
   } else {
     state.revealedIndex += 1;
-    state.authorShown = false;
     state.guesses = {};
   }
-  await saveState(state);
-  render();
-}
-
-async function revealAuthor(){
-  const state = await loadState();
-  state.authorShown = true;
   await saveState(state);
   render();
 }
@@ -286,7 +272,6 @@ async function render(){
   const waitingBox = document.getElementById('waitingBox');
   const revealBox = document.getElementById('revealBox');
   const guessBox = document.getElementById('guessBox');
-  const authorRevealBox = document.getElementById('authorRevealBox');
   const adminStatus = document.getElementById('adminStatus');
 
   submitBox.style.display = 'none';
@@ -311,16 +296,8 @@ async function render(){
     revealBox.style.display = 'block';
     document.getElementById('confessionCount').textContent = `Confession ${state.revealedIndex + 1} of ${state.confessions.length}`;
     document.getElementById('confessionText2').textContent = state.confessions[state.revealedIndex].text;
-
-    if(state.authorShown){
-      guessBox.style.display = 'none';
-      authorRevealBox.style.display = 'block';
-      document.getElementById('authorName').textContent = 'Written by ' + state.confessions[state.revealedIndex].author;
-    } else {
-      guessBox.style.display = 'block';
-      authorRevealBox.style.display = 'none';
-      buildGuessList(state);
-    }
+    guessBox.style.display = 'block';
+    buildGuessList(state);
     return;
   }
 
@@ -330,7 +307,6 @@ async function render(){
     document.getElementById('confessionCount').textContent = 'That is everyone secrets — for now.';
     document.getElementById('confessionText2').textContent = '🥂';
     guessBox.style.display = 'none';
-    authorRevealBox.style.display = 'none';
   }
 }
 
